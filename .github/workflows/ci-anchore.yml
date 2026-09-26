@@ -82,4 +82,5 @@ jobs:
     # full steps SEQUENCE can be aliased wholesale (just not merged/extended).
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env: *default_env
     steps: *common_steps
