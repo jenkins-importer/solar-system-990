@@ -1,0 +1,93 @@
+name: Rich Job Reporting with GITHUB_STEP_SUMMARY
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-summarize:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests (JSON reporter)
+        id: unit_tests
+        run: |
+          npx mocha app-test.js --reporter json > test-results.json || echo "TESTS_FAILED=true" >> "$GITHUB_ENV"
+        continue-on-error: true
+
+      - name: Run code coverage
+        id: coverage
+        run: npm run coverage
+        continue-on-error: true
+
+      - name: Build markdown test summary
+        if: always()
+        run: |
+          {
+            echo "## :test_tube: Solar System - Test Report"
+            echo ""
+            echo "**Run:** \`${{ github.run_id }}\` | **Branch:** \`${{ github.ref_name }}\` | **Commit:** \`${{ github.sha }}\`"
+            echo ""
+            if [ -f test-results.json ]; then
+              PASSES=$(node -p "require('./test-results.json').stats.passes")
+              FAILURES=$(node -p "require('./test-results.json').stats.failures")
+              DURATION=$(node -p "require('./test-results.json').stats.duration")
+              echo "| Metric | Value |"
+              echo "| --- | --- |"
+              echo "| :white_check_mark: Passed | $PASSES |"
+              echo "| :x: Failed | $FAILURES |"
+              echo "| :stopwatch: Duration (ms) | $DURATION |"
+            else
+              echo "> Test results file not found."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build markdown coverage summary
+        if: always()
+        run: |
+          {
+            echo ""
+            echo "## :bar_chart: Code Coverage"
+            echo ""
+            if [ -f coverage/coverage-summary.json ]; then
+              echo "| File Type | % Statements | % Branches | % Functions | % Lines |"
+              echo "| --- | --- | --- | --- | --- |"
+              node -e "
+                const s = require('./coverage/coverage-summary.json').total;
+                console.log('| Total | ' + s.statements.pct + '% | ' + s.branches.pct + '% | ' + s.functions.pct + '% | ' + s.lines.pct + '% |');
+              "
+            else
+              echo "> Coverage summary not found. Run \`npm run coverage\` locally to generate it."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail the job if tests failed
+        if: env.TESTS_FAILED == 'true'
+        run: |
+          echo "### :rotating_light: Unit tests failed - see summary above." >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
+      - name: Upload raw test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-and-coverage-artifacts
+          path: |
+            test-results.json
+            coverage/
+          retention-days: 5
