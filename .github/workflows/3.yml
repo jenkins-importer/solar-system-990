@@ -1,0 +1,73 @@
+name: Modern Step Environment Files Demo
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Capture package version to GITHUB_OUTPUT
+        id: pkg
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Persist a value across steps with GITHUB_ENV
+        run: |
+          echo "APP_BUILD_ID=solar-system-${{ github.run_number }}-${{ github.run_attempt }}" >> "$GITHUB_ENV"
+
+      - name: Use the GITHUB_ENV value in a later step
+        run: |
+          echo "Building artifact with ID: $APP_BUILD_ID"
+          echo "Package version resolved earlier: ${{ steps.pkg.outputs.version }}"
+          echo "Build timestamp: ${{ steps.pkg.outputs.build_time }}"
+
+      - name: Demonstrate GITHUB_STATE for a custom composite-style step
+        # GITHUB_STATE is normally used inside a JavaScript/composite action's
+        # "main" step to pass data to its own "post" cleanup step. We simulate
+        # that here with two ordinary steps sharing the same state file.
+        id: state_demo
+        run: |
+          echo "temp_dir=/tmp/solar-system-cache-${{ github.run_id }}" >> "$GITHUB_STATE"
+          mkdir -p "/tmp/solar-system-cache-${{ github.run_id }}"
+          echo "Created temp workspace for this run"
+
+      - name: Multiline output written to GITHUB_OUTPUT (heredoc form)
+        id: multiline
+        run: |
+          {
+            echo 'summary<<EOF'
+            echo 'Unit tests: passed'
+            echo 'Coverage: collected'
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Print multiline output
+        run: echo "${{ steps.multiline.outputs.summary }}"
+
+# ---------------------------------------------------------------------------
+# TEACHING NOTE - the old, fully disabled syntax (do not use, kept as prose
+# only so actionlint doesn't flag it as live deprecated-command usage):
+# the "set dash dash output" workflow command that used to write directly to
+# stdout as "::COMMAND NAME::VALUE" is deprecated and no longer works.
+# Always write to the files referenced by $GITHUB_OUTPUT, $GITHUB_ENV, and
+# $GITHUB_STATE instead, exactly as the steps above do.
+# ---------------------------------------------------------------------------
