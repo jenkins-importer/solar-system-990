@@ -1,0 +1,82 @@
+name: CI with YAML Anchors and Aliases
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# ---------------------------------------------------------------------------
+# GitHub Actions ignores unrecognized top-level keys, so ".anchors" is a safe
+# place to park reusable YAML fragments.
+#
+# IMPORTANT (teaching point): the "<<" merge key only merges MAPPINGS
+# (key: value blocks) into another mapping. It does NOT flatten/merge a
+# SEQUENCE (a list of steps) into another sequence. To reuse a set of steps
+# across jobs you anchor each individual step (a mapping) and reference it
+# directly with "*alias" as a plain list item - no "<<" involved for steps.
+# "<<" IS the right tool for merging things like "env:" blocks below.
+# ---------------------------------------------------------------------------
+.anchors:
+  steps:
+    - &checkout
+      name: Checkout repository
+      uses: actions/checkout@v4
+    - &setup_node
+      name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    - &install_deps
+      name: Install dependencies
+      run: npm ci
+
+  default_env: &default_env
+    NODE_ENV: test
+    MONGO_URI: mongodb+srv://supercluster.d83jj.mongodb.net/superData
+    MONGO_USERNAME: superuser
+    MONGO_PASSWORD: SuperPassword
+
+jobs:
+  unit-testing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      <<: *default_env
+    steps:
+      - *checkout
+      - *setup_node
+      - *install_deps
+      - name: Run unit tests
+        run: npm test
+
+  code-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      <<: *default_env
+    steps:
+      - *checkout
+      - *setup_node
+      - *install_deps
+      - name: Run code coverage
+        run: npm run coverage
+        continue-on-error: true
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage-report
+          path: coverage
+          retention-days: 5
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - *checkout
+      - *setup_node
+      - *install_deps
+      - name: Run ESLint
+        run: npx eslint . --max-warnings=0
+        continue-on-error: true
