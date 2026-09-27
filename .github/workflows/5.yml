@@ -22,6 +22,11 @@ on:
 
 jobs:
   using-the-composite-action:
+    env: &default_env
+      NODE_ENV: test
+      MONGO_URI: mongodb+srv://supercluster.d83jj.mongodb.net/superData
+      MONGO_USERNAME: superuser
+      MONGO_PASSWORD: SuperPassword
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
