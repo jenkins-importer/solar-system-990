@@ -32,7 +32,7 @@ jobs:
           MONGO_PASSWORD: SuperPassword       
         id: unit_tests
         run: |
-          npx mocha app-test.js --reporter json > test-results.json || echo "TESTS_FAILED=true" >> "$GITHUB_ENV"
+          npm run test
         continue-on-error: true
 
       - name: Run code coverage
