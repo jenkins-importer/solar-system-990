@@ -32,9 +32,10 @@ jobs:
           MONGO_PASSWORD: SuperPassword       
         id: unit_tests
         run: |
-          npm run test
+          mocha app-test.js --timeout 10000 --reporter json --reporter-option output=test-results.json --exit > test-results.json || echo "TESTS_FAILED=true" >> "$GITHUB_ENV"
         continue-on-error: true
-
+      - run: ls 
+      - run: cat test-results.json 
       - name: Run code coverage
         env: *default_env
         id: coverage
