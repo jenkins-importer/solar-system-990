@@ -52,19 +52,19 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
-      - name: Build a source tarball artifact for attestation demo
-        run: tar -czf solar-system-src.tar.gz --exclude=node_modules --exclude=.git .
+      # - name: Build a source tarball artifact for attestation demo
+      #   run: tar -czf solar-system-src.tar.gz --exclude=node_modules --exclude=.git .
 
-      - name: Attest a plain build artifact (non-container example)
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-path: 'solar-system-src.tar.gz'
+      # - name: Attest a plain build artifact (non-container example)
+      #   uses: actions/attest-build-provenance@v1
+      #   with:
+      #     subject-path: 'solar-system-src.tar.gz'
 
-      - name: Upload artifact and its provenance
-        uses: actions/upload-artifact@v4
-        with:
-          name: solar-system-src-with-provenance
-          path: solar-system-src.tar.gz
+      # - name: Upload artifact and its provenance
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: solar-system-src-with-provenance
+      #     path: solar-system-src.tar.gz
 
   verify-attestation:
     needs: build-sign-and-attest
