@@ -84,5 +84,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh attestation verify \
-            oci://ghcr.io/jenkins-importer/solar-system-900/solar-system:${{ github.sha }} \
-            --owner jenkins-importer
+            oci://ghcr.io/${{ github.repository }}/solar-system:${{ github.sha }} \
+            --owner ${{ github.repository_owner }}
