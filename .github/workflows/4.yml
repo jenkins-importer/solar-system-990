@@ -22,48 +22,17 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Run unit tests (JSON reporter)
+        run: npm ci  
+      
+      - name: Run code coverage
         env: &default_env
           NODE_ENV: test
           MONGO_URI: mongodb+srv://supercluster.d83jj.mongodb.net/superData
           MONGO_USERNAME: superuser
-          MONGO_PASSWORD: SuperPassword       
-        id: unit_tests
-        run: |
-          mocha app-test.js --timeout 10000 --exit
-          mocha app-test.js --timeout 10000 --reporter json --reporter-option output=test-results.json --exit
-        continue-on-error: true
-      - run: ls 
-      - run: cat test-results.json 
-      - name: Run code coverage
-        env: *default_env
+          MONGO_PASSWORD: SuperPassword     
         id: coverage
         run: npm run coverage
         continue-on-error: true
-
-      - name: Build markdown test summary
-        if: always()
-        run: |
-          {
-            echo "## :test_tube: Solar System - Test Report"
-            echo ""
-            echo "**Run:** \`${{ github.run_id }}\` | **Branch:** \`${{ github.ref_name }}\` | **Commit:** \`${{ github.sha }}\`"
-            echo ""
-            if [ -f test-results.json ]; then
-              PASSES=$(node -p "require('./test-results.json').stats.passes")
-              FAILURES=$(node -p "require('./test-results.json').stats.failures")
-              DURATION=$(node -p "require('./test-results.json').stats.duration")
-              echo "| Metric | Value |"
-              echo "| --- | --- |"
-              echo "| :white_check_mark: Passed | $PASSES |"
-              echo "| :x: Failed | $FAILURES |"
-              echo "| :stopwatch: Duration (ms) | $DURATION |"
-            else
-              echo "> Test results file not found."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build markdown coverage summary
         if: always()
@@ -83,19 +52,3 @@ jobs:
               echo "> Coverage summary not found. Run \`npm run coverage\` locally to generate it."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Fail the job if tests failed
-        if: env.TESTS_FAILED == 'true'
-        run: |
-          echo "### :rotating_light: Unit tests failed - see summary above." >> "$GITHUB_STEP_SUMMARY"
-          exit 1
-
-      - name: Upload raw test artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-and-coverage-artifacts
-          path: |
-            test-results.json
-            coverage/
-          retention-days: 5
