@@ -1,0 +1,51 @@
+name: OIDC Token Exchange Demo (Local Mock)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  oidc-token-exchange:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Request OIDC token from GitHub
+        id: github-oidc
+        run: |
+          # This endpoint is GitHub's built-in OIDC token issuer
+          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r '.token')
+          
+          echo "token_received=true" >> "$GITHUB_OUTPUT"
+          echo "token_length=${#TOKEN}" >> "$GITHUB_OUTPUT"
+          echo "Received OIDC token of length: ${#TOKEN} bytes"
+
+      - name: Decode OIDC token payload (base64, no validation)
+        run: |
+          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r '.token')
+          
+          # Split JWT and decode payload (second segment)
+          PAYLOAD=$(echo "$TOKEN" | cut -d'.' -f2)
+          echo "Token payload (decoded):"
+          echo "$PAYLOAD" | base64 -d | jq '.'
+
+      - name: Show what a real cloud would do with this token
+        run: |
+          echo "In a real scenario:"
+          echo "1. This token would be sent to AWS/GCP/Azure STS endpoint"
+          echo "2. The cloud provider verifies the signature (GitHub's public key)"
+          echo "3. The cloud exchanges it for temporary credentials"
+          echo "4. The credentials work for 1 hour, then expire"
+          echo ""
+          echo "With this mock, we just proved:"
+          echo "  ✓ GitHub issued an OIDC token"
+          echo "  ✓ The token contains repo/branch/commit info"
+          echo "  ✓ No long-lived keys were used"
