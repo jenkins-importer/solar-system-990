@@ -19,6 +19,11 @@ jobs:
     # run tests. It does not push commits, comment on PRs, or touch packages.
     permissions:
       contents: read
+    env: 
+      NODE_ENV: test
+      MONGO_URI: mongodb+srv://supercluster.d83jj.mongodb.net/superData
+      MONGO_USERNAME: superuser
+      MONGO_PASSWORD: SuperPassword
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
