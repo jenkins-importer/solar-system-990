@@ -1,0 +1,51 @@
+name: 'Setup Solar System Environment'
+description: 'Composite action that checks out code, installs Node.js, restores npm cache, and installs dependencies for the solar-system app.'
+author: 'sidd-harth'
+
+inputs:
+  node-version:
+    description: 'Node.js version to install'
+    required: false
+    default: '20'
+  working-directory:
+    description: 'Directory containing package.json'
+    required: false
+    default: '.'
+
+outputs:
+  cache-hit:
+    description: 'Whether the npm cache was restored from a previous run'
+    value: ${{ steps.npm-cache.outputs.cache-hit }}
+  node-version-used:
+    description: 'The resolved Node.js version that was installed'
+    value: ${{ steps.setup-node.outputs.node-version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      id: setup-node
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Restore npm cache
+      id: npm-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-npm-${{ hashFiles(format('{0}/package-lock.json', inputs.working-directory)) }}
+        restore-keys: |
+          ${{ runner.os }}-npm-
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm ci
+
+    - name: Print environment summary
+      shell: bash
+      run: |
+        echo "Node version: $(node -v)"
+        echo "npm version: $(npm -v)"
+        echo "Cache hit: ${{ steps.npm-cache.outputs.cache-hit }}"

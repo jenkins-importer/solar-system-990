@@ -1,0 +1,48 @@
+name: Composite Action vs Reusable Workflow Demo
+
+# ---------------------------------------------------------------------------
+# Teaching comparison (see comments):
+#  - STARTER WORKFLOW: a template GitHub shows you in the "Actions" tab UI
+#    when creating a new workflow (lives in a .github repo as a template,
+#    copied once, then owned/edited by the consuming repo). Not referenced
+#    here since it isn't callable code, just a scaffold.
+#  - COMPOSITE ACTION: a bundle of steps reused WITHIN a single job on the
+#    SAME runner (see .github/actions/setup-solar-env/action.yml). Cannot
+#    define its own "jobs:", cannot set job-level "permissions" or "secrets"
+#    independently - it inherits the caller job's context.
+#  - REUSABLE WORKFLOW: a full workflow file with its own "jobs:", invoked
+#    with "uses:" at the JOB level via "workflow_call". Runs as its own
+#    job(s), can accept "secrets:", and can fan out to multiple runners.
+# ---------------------------------------------------------------------------
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  using-the-composite-action:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup environment via composite action
+        id: setup
+        uses: ./.github/actions/setup-solar-env
+        with:
+          node-version: '20'
+
+      - name: Run tests using the environment the composite action prepared
+        run: npm test
+
+      - name: Show composite action outputs
+        run: |
+          echo "Cache hit: ${{ steps.setup.outputs.cache-hit }}"
+          echo "Node version used: ${{ steps.setup.outputs.node-version-used }}"
+
+  call-the-reusable-workflow:
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      node-version: '20'
+    secrets: inherit
