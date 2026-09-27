@@ -1,0 +1,68 @@
+name: Runner Toolcache and Dependency Caching Demo
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  inspect-hosted-toolcache:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show runner image and OS details
+        run: |
+          echo "Runner name: $RUNNER_NAME"
+          echo "Runner OS: $RUNNER_OS"
+          echo "Runner arch: $RUNNER_ARCH"
+          cat /etc/os-release || true
+
+      - name: List preinstalled Node.js versions in the hosted toolcache
+        run: |
+          echo "Contents of RUNNER_TOOL_CACHE ($RUNNER_TOOL_CACHE):"
+          ls -la "$RUNNER_TOOL_CACHE" || true
+          echo ""
+          echo "Preinstalled Node.js versions:"
+          ls -la "$RUNNER_TOOL_CACHE/node" 2>/dev/null || echo "Node not found under toolcache root on this image."
+
+      - name: Link to hosted runner image release notes
+        run: |
+          echo "Hosted runner images and their preinstalled software are versioned here:"
+          echo "https://github.com/actions/runner-images/releases"
+          echo "Check the 'Ubuntu 24.04' (or current LTS) release notes to see exact Node.js,"
+          echo "npm, Docker, and kubectl versions baked into ubuntu-latest before pinning a version."
+
+      - name: Setup Node.js with actions/setup-node caching (hosted runner)
+        id: setup-node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Confirm resolved Node.js version from toolcache
+        run: |
+          echo "setup-node resolved version: ${{ steps.setup-node.outputs.node-version }}"
+          node -v
+          which node
+
+      - name: Install dependencies (npm cache restored/populated automatically)
+        run: npm ci
+
+# ---------------------------------------------------------------------------
+# SELF-HOSTED RUNNER NOTES (documentation only - no runnable job here, since
+# this repo has no self-hosted runner registered to target):
+#
+# On self-hosted runners, $RUNNER_TOOL_CACHE typically starts empty (unlike
+# hosted ubuntu-latest images, which ship Node.js/Python/etc. preinstalled).
+# actions/setup-node will download and cache the requested Node.js version
+# into $RUNNER_TOOL_CACHE/node the first time a workflow runs on that
+# machine, then reuse it on every subsequent job on that SAME machine
+# (persistent disk - unlike hosted runners, which are ephemeral). To try
+# this for real: register a self-hosted runner with the label
+# [self-hosted, linux, x64], set a job's "runs-on" to that label array, and
+# run the same "actions/setup-node@v4" + "npm ci" steps used in the hosted
+# job above - the second run onward will show a populated toolcache.
+# ---------------------------------------------------------------------------
