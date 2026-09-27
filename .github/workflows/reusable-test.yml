@@ -1,0 +1,32 @@
+name: Reusable - Run Solar System Tests
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        type: string
+        required: false
+        default: '20'
+    secrets:
+      MONGO_PASSWORD:
+        required: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup environment via composite action
+        uses: ./.github/actions/setup-solar-env
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run coverage
+        run: npm run coverage
