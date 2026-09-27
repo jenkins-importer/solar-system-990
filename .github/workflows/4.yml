@@ -25,12 +25,18 @@ jobs:
         run: npm ci
 
       - name: Run unit tests (JSON reporter)
+        env: &default_env
+          NODE_ENV: test
+          MONGO_URI: mongodb+srv://supercluster.d83jj.mongodb.net/superData
+          MONGO_USERNAME: superuser
+          MONGO_PASSWORD: SuperPassword       
         id: unit_tests
         run: |
           npx mocha app-test.js --reporter json > test-results.json || echo "TESTS_FAILED=true" >> "$GITHUB_ENV"
         continue-on-error: true
 
       - name: Run code coverage
+        env: *default_env
         id: coverage
         run: npm run coverage
         continue-on-error: true
