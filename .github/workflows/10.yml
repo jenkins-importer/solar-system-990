@@ -73,6 +73,8 @@ jobs:
       contents: read
       id-token: write
       attestations: read
+      packages: read  # Ensures the registry reader token works natively
+
     steps:
       - name: Log in to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -82,5 +84,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh attestation verify \
-            oci://ghcr.io/${{ github.repository }}/solar-system:${{ github.sha }} \
-            --owner ${{ github.repository_owner }}
+            oci://ghcr.io/jenkins-importer/solar-system-900/solar-system:${{ github.sha }} \
+            --owner jenkins-importer
