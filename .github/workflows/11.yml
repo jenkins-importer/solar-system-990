@@ -1,0 +1,70 @@
+name: Programmatic Secret and Variable Auditing
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # every Monday at 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-secrets-and-variables:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Audit repository secrets (names and metadata only - never values)
+        env:
+          GH_TOKEN: ${{ secrets.AUDIT_PAT }}
+        run: |
+          echo "## Repository Secrets Audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Name | Created | Last Updated |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          gh api "repos/${{ github.repository }}/actions/secrets" --paginate \
+            --jq '.secrets[] | "| " + .name + " | " + .created_at + " | " + .updated_at + " |"' \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Audit repository variables (names and values - variables are non-sensitive)
+        env:
+          GH_TOKEN: ${{ secrets.AUDIT_PAT }}
+        run: |
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Repository Variables Audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Name | Value | Last Updated |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          gh api "repos/${{ github.repository }}/actions/variables" --paginate \
+            --jq '.variables[] | "| " + .name + " | " + .value + " | " + .updated_at + " |"' \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Flag secrets untouched for over 180 days
+        env:
+          GH_TOKEN: ${{ secrets.AUDIT_PAT }}
+        run: |
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "## :warning: Stale Secrets (not rotated in 180+ days)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          CUTOFF=$(date -u -d '180 days ago' +%s 2>/dev/null || date -u -v-180d +%s)
+          STALE_FOUND=0
+          gh api "repos/${{ github.repository }}/actions/secrets" --paginate --jq '.secrets[] | .name + " " + .updated_at' | \
+          while read -r NAME UPDATED_AT; do
+            UPDATED_EPOCH=$(date -u -d "$UPDATED_AT" +%s 2>/dev/null || date -u -jf "%Y-%m-%dT%H:%M:%SZ" "$UPDATED_AT" +%s)
+            if [ "$UPDATED_EPOCH" -lt "$CUTOFF" ]; then
+              echo "- :rotating_light: \`$NAME\` last updated $UPDATED_AT" >> "$GITHUB_STEP_SUMMARY"
+              STALE_FOUND=1
+            fi
+          done
+          if [ "$STALE_FOUND" -eq 0 ]; then
+            echo "No stale secrets found." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Fail workflow if audit could not authenticate
+        if: failure()
+        run: |
+          echo "Audit requires a fine-grained PAT stored as the AUDIT_PAT secret," \
+               "with 'Secrets' and 'Variables' repository permissions set to Read-only." \
+               "The built-in GITHUB_TOKEN cannot list secrets/variables via the REST API."
+          exit 1
