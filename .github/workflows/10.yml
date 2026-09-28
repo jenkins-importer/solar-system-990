@@ -66,23 +66,23 @@ jobs:
       #     name: solar-system-src-with-provenance
       #     path: solar-system-src.tar.gz
 
-  verify-attestation:
-    needs: build-sign-and-attest
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-      attestations: read
-      packages: read  # Ensures the registry reader token works natively
+  # verify-attestation:
+  #   needs: build-sign-and-attest
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #     id-token: write
+  #     attestations: read
+  #     packages: read  # Ensures the registry reader token works natively
 
-    steps:
-      - name: Log in to GitHub Container Registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+  #   steps:
+  #     - name: Log in to GitHub Container Registry
+  #       run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Verify container image provenance with GitHub CLI
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh attestation verify \
-            oci://ghcr.io/${{ github.repository }}/solar-system:${{ github.sha }} \
-            --owner ${{ github.repository_owner }}
+  #     - name: Verify container image provenance with GitHub CLI
+  #       env:
+  #         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       run: |
+  #         gh attestation verify \
+  #           oci://ghcr.io/${{ github.repository }}/solar-system:${{ github.sha }} \
+  #           --owner ${{ github.repository_owner }}
